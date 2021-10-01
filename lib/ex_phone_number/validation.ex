@@ -311,7 +311,27 @@ defmodule ExPhoneNumber.Validation do
     end
   end
 
+  @doc """
+  https://github.com/google/libphonenumber/blob/v8.12.27/javascript/i18n/phonenumbers/phonenumberutil.js#L3420
+  """
   defp test_number_length_for_type(number, metadata, type) do
+    desc_for_type = get_number_description_by_type(metadata, type)
+    desc_general = get_number_description_by_type(metadata, :general)
+
+    possible_lengths =
+      if Enum.empty?(desc_for_type.possible_lengths),
+        do: desc_general.possible_lengths,
+        else: desc_for_type.possible_lengths
+
+    local_lengths = desc_for_type.local_possible_lengths
+
+    if type == PhoneNumberTypes.fixed_line() do
+      desc_fixed = get_number_description_by_type(metadata, PhoneNumberTypes.fixed_line())
+    else
+    end
+
+    # --------------------------------------------------------------------------
+
     possible_lengths =
       if type == PhoneNumberTypes.fixed_line_or_mobile() do
         (possible_lengths_by_type(metadata, PhoneNumberTypes.fixed_line()) ++
@@ -344,6 +364,12 @@ defmodule ExPhoneNumber.Validation do
     end
   end
 
+  defp local_possible_lengths(metadata, type) do
+  end
+
+  defp national_possible_lengths(metadata, type) do
+  end
+
   defp possible_lengths_by_type(metadata, type) do
     desc_for_type = get_number_description_by_type(metadata, type)
     desc_general = get_number_description_by_type(metadata, :general)
@@ -361,6 +387,7 @@ defmodule ExPhoneNumber.Validation do
       type == PhoneNumberTypes.toll_free() -> metadata.toll_free
       type == PhoneNumberTypes.mobile() -> metadata.mobile
       type == PhoneNumberTypes.fixed_line() -> metadata.fixed_line
+      type == PhoneNumberTypes.fixed_line_or_mobile() -> metadata.fixed_line
       type == PhoneNumberTypes.shared_cost() -> metadata.shared_cost
       type == PhoneNumberTypes.voip() -> metadata.voip
       type == PhoneNumberTypes.personal_number() -> metadata.personal_number
