@@ -3,6 +3,10 @@ defmodule ExPhoneNumber.Metadata.PhoneNumberDescription do
   defstruct national_number_pattern: nil,
             # list
             possible_lengths: nil,
+            # list
+            local_possible_lengths: nil,
+            # list
+            national_possible_lengths: nil,
             # string
             example_number: nil
 
@@ -21,15 +25,20 @@ defmodule ExPhoneNumber.Metadata.PhoneNumberDescription do
         example_number: ~x"./exampleNumber/text()"o |> transform_by(&normalize_string/1)
       )
 
+    local_possible_lengths = kwlist.local_possible_lengths || []
+    national_possible_lengths = kwlist.national_possible_lengths || []
+
     possible_lengths =
-      (kwlist.local_possible_lengths || [])
-      |> Enum.concat(kwlist.national_possible_lengths || [])
+      local_possible_lengths
+      |> Enum.concat(national_possible_lengths)
       |> Enum.sort()
       |> Enum.uniq()
 
     struct(%PhoneNumberDescription{}, %{
       national_number_pattern: kwlist.national_number_pattern,
       possible_lengths: possible_lengths,
+      local_possible_lengths: local_possible_lengths,
+      national_possible_lengths: national_possible_lengths,
       example_number: kwlist.example_number
     })
   end
