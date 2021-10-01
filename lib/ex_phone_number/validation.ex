@@ -165,18 +165,46 @@ defmodule ExPhoneNumber.Validation do
          number_type == PhoneNumberTypes.mobile())
   end
 
+  @doc """
+  i18n.phonenumbers.PhoneNumberUtil.prototype.isPossibleNumber
+  """
   def is_possible_number?(%PhoneNumber{} = number) do
-    ValidationResults.is_possible() == is_possible_number_with_reason?(number)
+    is_possible_number_with_reason?(number) in [
+      ValidationResults.is_possible(),
+      ValidationResults.is_possible_local_only()
+    ]
   end
 
+  @doc """
+  i18n.phonenumbers.PhoneNumberUtil.prototype.isPossibleNumberForType
+  """
+  def is_possible_number_for_type?(%PhoneNumber{} = number, type) do
+    is_possible_number_for_type_with_reason?(number, type) in [
+      ValidationResults.is_possible(),
+      ValidationResults.is_possible_local_only()
+    ]
+  end
+
+  @doc """
+  i18n.phonenumbers.PhoneNumberUtil.prototype.isPossibleNumberWithReason
+  """
   def is_possible_number_with_reason?(%PhoneNumber{} = number) do
-    if not Metadata.is_valid_country_code?(number.country_code) do
+    is_possible_number_for_type_with_reason?(number, PhoneNumberTypes.unknown())
+  end
+
+  @doc """
+  i18n.phonenumbers.PhoneNumberUtil.prototype.isPossibleNumberForTypeWithReason
+  """
+  def is_possible_number_for_type_with_reason?(%PhoneNumber{} = number, type) do
+    national_number = PhoneNumber.get_national_significant_number(number)
+    country_code = PhoneNumber.get_country_code_or_default(number)
+
+    if not Metadata.is_valid_country_code?(country_code) do
       ValidationResults.invalid_country_code()
     else
-      region_code = Metadata.get_region_code_for_country_code(number.country_code)
-      metadata = Metadata.get_for_region_code_or_calling_code(number.country_code, region_code)
-      national_number = PhoneNumber.get_national_significant_number(number)
-      test_number_length(national_number, metadata)
+      region_code = Metadata.get_region_code_for_country_code(country_code)
+      metadata = Metadata.get_for_region_code_or_calling_code(country_code, region_code)
+      test_number_length_for_type(national_number, metadata, type)
     end
   end
 

@@ -8,6 +8,7 @@ defmodule ExPhoneNumber.ValidationTest do
   alias ExPhoneNumber.{PhoneNumberFixture, RegionCodeFixture}
   alias ExPhoneNumber.Constants.PhoneNumberTypes
   alias ExPhoneNumber.Constants.ValidationResults
+  alias ExPhoneNumber.Model.PhoneNumber
 
   describe ".is_possible_number?/1" do
     test "IsPossibleNumber" do
@@ -34,6 +35,107 @@ defmodule ExPhoneNumber.ValidationTest do
       assert ValidationResults.too_short() == is_possible_number_with_reason?(PhoneNumberFixture.nanpa_short_number())
       assert ValidationResults.is_possible() == is_possible_number_with_reason?(PhoneNumberFixture.sg_number2())
       assert ValidationResults.too_long() == is_possible_number_with_reason?(PhoneNumberFixture.international_toll_free_too_long())
+    end
+  end
+
+  describe ".is_possible_number_for_type_with_reason?/1" do
+    test "DifferentTypeLengths" do
+      possible? = &is_possible_number_for_type_with_reason?/2
+
+      number = %PhoneNumber{country_code: 54, national_number: 12345}
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.unknown())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.fixed_line())
+
+      number = %PhoneNumber{country_code: 54, national_number: 123_456}
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.unknown())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.toll_free())
+
+      number = %PhoneNumber{country_code: 54, national_number: 123_456_789}
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.unknown())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.toll_free())
+
+      number = %PhoneNumber{country_code: 54, national_number: 123_456_7890}
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.unknown())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.toll_free())
+
+      number = %PhoneNumber{country_code: 54, national_number: 12_345_678_901}
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.unknown())
+      assert ValidationResults.too_long() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.too_long() == possible?.(number, PhoneNumberTypes.toll_free())
+    end
+
+    test "LocalOnly" do
+      possible? = &is_possible_number_for_type_with_reason?/2
+
+      number = %PhoneNumber{country_code: 49, national_number: 12}
+      assert ValidationResults.is_possible_local_only() == possible?.(number, PhoneNumberTypes.unknown())
+      assert ValidationResults.is_possible_local_only() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.mobile())
+    end
+
+    test "DataMissingForSizeReasons" do
+      possible? = &is_possible_number_for_type_with_reason?/2
+
+      number = %PhoneNumber{country_code: 55, national_number: 12_345_678}
+      assert ValidationResults.is_possible_local_only() == possible?.(number, PhoneNumberTypes.unknown())
+      assert ValidationResults.is_possible_local_only() == possible?.(number, PhoneNumberTypes.fixed_line())
+
+      number = %PhoneNumber{country_code: 55, national_number: 1_234_567_890}
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.unknown())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.fixed_line())
+    end
+
+    test "NumberTypeNotSupportedForRegion" do
+      possible? = &is_possible_number_for_type_with_reason?/2
+
+      number = %PhoneNumber{country_code: 55, national_number: 12_345_678}
+      assert ValidationResults.invalid_length() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.is_possible_local_only() == possible?.(number, PhoneNumberTypes.fixed_line_or_mobile())
+
+      number = %PhoneNumber{country_code: 55, national_number: 1_234_567}
+      assert ValidationResults.invalid_length() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.fixed_line_or_mobile())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.fixed_line())
+
+      number = %PhoneNumber{country_code: 882, national_number: 1_234_567}
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.fixed_line_or_mobile())
+      assert ValidationResults.invalid_length() == possible?.(number, PhoneNumberTypes.fixed_line())
+    end
+
+    test "FixedLineOrMobile" do
+      possible? = &is_possible_number_for_type_with_reason?/2
+
+      number = %PhoneNumber{country_code: 290, national_number: 1234}
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.fixed_line_or_mobile())
+
+      number = %PhoneNumber{country_code: 290, national_number: 12345}
+      assert ValidationResults.too_short() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.too_long() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.invalid_length() == possible?.(number, PhoneNumberTypes.fixed_line_or_mobile())
+
+      number = %PhoneNumber{country_code: 290, national_number: 123_456}
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.too_long() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.fixed_line_or_mobile())
+
+      number = %PhoneNumber{country_code: 290, national_number: 123_4567}
+      assert ValidationResults.too_long() == possible?.(number, PhoneNumberTypes.fixed_line())
+      assert ValidationResults.too_long() == possible?.(number, PhoneNumberTypes.mobile())
+      assert ValidationResults.too_long() == possible?.(number, PhoneNumberTypes.fixed_line_or_mobile())
+
+      number = %PhoneNumber{country_code: 290, national_number: 123_45678}
+      assert ValidationResults.is_possible() == possible?.(number, PhoneNumberTypes.toll_free())
+      assert ValidationResults.too_long() == possible?.(number, PhoneNumberTypes.fixed_line_or_mobile())
     end
   end
 
